@@ -147,33 +147,37 @@ impl BstNode {
      * Alternate simpler version of tree_successor that made use of is_nil checking
      */
     #[allow(dead_code)]
-    pub fn tree_successor_simpler(x_node: &BstNodeLink) -> Option<BstNodeLink>{
-        //create a shadow of x_node so it can mutate
-        let mut x_node = x_node;
-        let right_node = &x_node.borrow().right.clone();
-        if BstNode::is_nil(right_node)!=true{
-            return Some(right_node.clone().unwrap().borrow().minimum());
+    pub fn tree_successor_simpler(x_node: &BstNodeLink) -> Option<BstNodeLink> {
+        let x_ref = x_node.borrow();
+    
+        // Case 1: has right child → return its subtree's minimum
+        if let Some(ref right) = x_ref.right {
+            return Some(right.borrow().minimum());
         }
-
-        let mut y_node = BstNode::upgrade_weak_to_strong(x_node.borrow().parent.clone());
-        let y_node_right = &y_node.clone().unwrap().borrow().right.clone();
-        let mut y_node2: Rc<RefCell<BstNode>>;
-        while BstNode::is_nil(&y_node) && BstNode::is_node_match_option(Some(x_node.clone()), y_node_right.clone()) {
-            y_node2 = y_node.clone().unwrap();
-            x_node = &y_node2;
-            let y_parent = y_node.clone().unwrap().borrow().parent.clone().unwrap();
-            y_node = BstNode::upgrade_weak_to_strong(Some(y_parent));
+    
+        // Case 2: no right child → go up until we move up from a left child
+        let mut current = Rc::clone(x_node);
+        let mut parent_opt = BstNode::upgrade_weak_to_strong(x_ref.parent.clone());
+    
+        drop(x_ref); // Drop borrow before the loop
+    
+        while let Some(parent_rc) = parent_opt {
+            let is_left_child = {
+                let parent_ref = parent_rc.borrow();
+                parent_ref.left.as_ref().map_or(false, |left| Rc::ptr_eq(&current, left))
+            };
+    
+            if is_left_child {
+                return Some(Rc::clone(&parent_rc)); // ✅ Return clone, not the borrowed one
+            }
+    
+            current = Rc::clone(&parent_rc);
+            parent_opt = BstNode::upgrade_weak_to_strong(current.borrow().parent.clone());
         }
-
-        //in case our sucessor traversal yield root, means self is the highest key
-        if BstNode::is_node_match_option(y_node.clone(), Some(BstNode::get_root(&x_node))) {
-            return None;
-        }
-
-        //default return self / x_node
-        return Some(y_node.clone().unwrap())
+    
+        None
     }
-
+    
     /**
      * private function return true if node doesn't has parent nor children nor key
      */

@@ -12,6 +12,7 @@ fn main() {
     //turn on to test the old code
     // test_binary_tree();
     test_binary_search_tree();
+    test_insert_delete();
 }
 
 fn test_binary_search_tree(){
@@ -111,6 +112,52 @@ fn test_binary_search_tree(){
         } else {
             println!("node with key of {} does not exist, failed to get successor", key)
         }
+    }
+}
+
+fn test_insert_delete() {
+    println!("Running test_insert_delete...");
+    use crate::structure::bst::BstNode;
+
+    let mut root: Option<BstNodeLink> = None;
+
+    // Insert nodes using tree_insert
+    for &val in &[15, 6, 18, 3, 7, 17, 20, 2, 4, 13, 9] {
+        println!("Inserting node with value: {}", val);
+        let node = BstNode::new_bst_nodelink(val);
+        BstNode::tree_insert(&mut root, node);
+    }
+
+    // Output the inserted tree
+    if let Some(ref r) = root {
+        generate_dotfile_bst(r, "bst_inserted.dot");
+    }
+
+    // Delete leaf node (4)
+    println!("Deleting leaf node with value: 4");
+    let node_4 = root.as_ref().unwrap().borrow().tree_search(&4).unwrap();
+    BstNode::tree_delete(&mut root, &node_4);
+
+    // Delete node with one child (13)
+    println!("Deleting node with one child, value: 13");
+    let node_13 = root.as_ref().unwrap().borrow().tree_search(&13).unwrap();
+    BstNode::tree_delete(&mut root, &node_13);
+
+    // Delete node with two children (6)
+    println!("Deleting node with two children, value: 6");
+    let node_6 = root.as_ref().unwrap().borrow().tree_search(&6).unwrap();
+    BstNode::tree_delete(&mut root, &node_6);
+
+    // Delete root (15)
+    println!("Deleting root node with value: 15");
+    let root_clone = root.as_ref().unwrap().clone();
+    BstNode::tree_delete(&mut root, &root_clone);
+
+    // Output tree after deletions
+    if let Some(ref r_after) = root {
+        generate_dotfile_bst(r_after, "bst_after_delete.dot");
+    } else {
+        println!("Tree is empty after deletions");
     }
 }
 
