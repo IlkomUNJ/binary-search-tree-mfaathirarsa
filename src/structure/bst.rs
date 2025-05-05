@@ -219,4 +219,87 @@ impl BstNode {
             Some(x) => Some(x.upgrade().unwrap()),
         }
     }
+    
+    /// Insert a node into the BST
+    pub fn tree_insert(root: &mut Option<BstNodeLink>, z: BstNodeLink) {
+        let mut y: Option<BstNodeLink> = None;
+        let mut x = root.clone();
+    
+        while x.is_some() {
+            let current = x.unwrap();
+            y = Some(current.clone());
+    
+            if z.borrow().key < current.borrow().key {
+                x = current.borrow().left.clone();
+            } else {
+                x = current.borrow().right.clone();
+            }
+        }
+    
+        z.borrow_mut().parent = y.as_ref().map(|n| Rc::downgrade(n));
+    
+        if let Some(ref y_node) = y {
+            if z.borrow().key < y_node.borrow().key {
+                y_node.borrow_mut().left = Some(z.clone());
+            } else {
+                y_node.borrow_mut().right = Some(z.clone());
+            }
+        } else {
+            *root = Some(z);
+        }
+    }
+
+    /// Replaces one subtree as a child of its parent with another subtree
+    pub fn transplant(root: &mut Option<BstNodeLink>, u: &BstNodeLink, v: Option<BstNodeLink>) {
+        let parent = BstNode::upgrade_weak_to_strong(u.borrow().parent.clone());
+
+        if let Some(ref parent_node) = parent {
+            if parent_node.borrow().left.as_ref().map(|n| Rc::ptr_eq(n, u)).unwrap_or(false) {
+                parent_node.borrow_mut().left = v.clone();
+            } else {
+                parent_node.borrow_mut().right = v.clone();
+            }
+        } else {
+            *root = v.clone();
+        }
+
+        if let Some(ref v_node) = v {
+            v_node.borrow_mut().parent = parent.map(|p| Rc::downgrade(&p));
+        }
+    }
+
+    /// Delete a node from the BST
+    pub fn tree_delete(root: &mut Option<BstNodeLink>, z: &BstNodeLink) {
+        if z.borrow().left.is_none() {
+            BstNode::transplant(root, z, z.borrow().right.clone());
+        } else if z.borrow().right.is_none() {
+            BstNode::transplant(root, z, z.borrow().left.clone());
+        } else {
+            let y = z.borrow().right.as_ref().unwrap().borrow().minimum();
+    
+            if !Rc::ptr_eq(&y, z.borrow().right.as_ref().unwrap()) {
+                let y_right = y.borrow().right.clone();
+                BstNode::transplant(root, &y, y_right);
+    
+                // We must drop the borrow before the next borrow
+                {
+                    let mut y_mut = y.borrow_mut();
+                    y_mut.right = z.borrow().right.clone();
+                    if let Some(ref right_node) = y_mut.right {
+                        right_node.borrow_mut().parent = Some(Rc::downgrade(&y));
+                    }
+                }
+            }
+    
+            BstNode::transplant(root, z, Some(y.clone()));
+    
+            {
+                let mut y_mut = y.borrow_mut();
+                y_mut.left = z.borrow().left.clone();
+                if let Some(ref left_node) = y_mut.left {
+                    left_node.borrow_mut().parent = Some(Rc::downgrade(&y));
+                }
+            }
+        }
+    }            
 }
